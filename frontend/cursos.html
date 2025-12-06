@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cursos - Plataforma Academica</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #f0f0f0; }
+        h1 { text-align: center; color: #333; }
+        nav { text-align: center; margin-bottom: 20px; }
+        nav a { margin: 0 10px; color: #007bff; text-decoration: none; }
+        nav a:hover { text-decoration: underline; }
+        .panel { background: white; padding: 20px; max-width: 500px; margin: 0 auto; border: 1px solid #ccc; }
+        .panel h2 { margin-top: 0; padding-bottom: 10px; border-bottom: 2px solid #333; }
+        .campo { margin-bottom: 12px; }
+        .campo label { display: block; margin-bottom: 4px; font-weight: bold; }
+        .campo input { width: 100%; padding: 8px; border: 1px solid #999; box-sizing: border-box; }
+        .botones { margin: 10px 0; }
+        button { padding: 8px 16px; margin-right: 5px; margin-bottom: 5px; cursor: pointer; }
+        .btn { background: #007bff; color: white; border: none; }
+        .resultado { margin-top: 15px; padding: 10px; background: #e9e9e9; border: 1px solid #ccc; min-height: 40px; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { border: 1px solid #ccc; padding: 6px; text-align: left; }
+        th { background: #ddd; }
+        .error { color: red; }
+        .exito { color: green; }
+        hr { margin: 15px 0; border: none; border-top: 1px solid #ccc; }
+        .fechas { display: flex; gap: 10px; }
+        .fechas .campo { flex: 1; }
+    </style>
+</head>
+<body>
+    <h1>Plataforma Academica</h1>
+    <nav>
+        <a href="alumnos.html">Alumnos</a> |
+        <a href="cursos.html"><strong>Cursos</strong></a>
+    </nav>
+
+    <div class="panel">
+        <h2>Cursos (REST)</h2>
+
+        <h4>Registrar/Editar Curso</h4>
+        <div class="campo">
+            <label>ID (solo para editar):</label>
+            <input type="number" id="cursoId" placeholder="Dejar vacio para nuevo">
+        </div>
+        <div class="campo">
+            <label>Nombre:</label>
+            <input type="text" id="cursoNombre" placeholder="Nombre del curso">
+        </div>
+        <div class="campo">
+            <label>Descripcion:</label>
+            <input type="text" id="cursoDescripcion" placeholder="Descripcion">
+        </div>
+        <div class="fechas">
+            <div class="campo">
+                <label>Fecha Inicio:</label>
+                <input type="date" id="cursoFechaInicio">
+            </div>
+            <div class="campo">
+                <label>Fecha Fin:</label>
+                <input type="date" id="cursoFechaFin">
+            </div>
+        </div>
+        <div class="botones">
+            <button class="btn" onclick="guardarCurso()">Guardar</button>
+            <button class="btn" onclick="listarCursos()">Ver Todos</button>
+            <button class="btn" onclick="limpiarFormularioCurso()">Limpiar</button>
+        </div>
+
+        <hr>
+
+        <h4>Buscar Curso</h4>
+        <div class="campo">
+            <label>Por Nombre:</label>
+            <input type="text" id="buscarNombreCurso" placeholder="Nombre">
+        </div>
+        <div class="botones">
+            <button class="btn" onclick="buscarCursoPorNombre()">Buscar Nombre</button>
+        </div>
+        <div class="campo">
+            <label>Por Fecha Inicio:</label>
+            <input type="date" id="buscarFechaCurso">
+        </div>
+        <div class="botones">
+            <button class="btn" onclick="buscarCursoPorFecha()">Buscar Fecha</button>
+        </div>
+
+        <div class="resultado" id="resultadoRest">-</div>
+    </div>
+
+    <script>
+        const REST_URL = 'http://localhost:8081/api/cursos';
+
+        async function guardarCurso() {
+            const id = document.getElementById('cursoId').value;
+            const nombre = document.getElementById('cursoNombre').value;
+            const descripcion = document.getElementById('cursoDescripcion').value;
+            const fechaInicio = document.getElementById('cursoFechaInicio').value;
+            const fechaFin = document.getElementById('cursoFechaFin').value;
+            if (!nombre || !descripcion || !fechaInicio) { mostrarRest('Complete los campos', true); return; }
+            const curso = { nombre, descripcion, fechaInicio, fechaFin: fechaFin || null };
+            try {
+                let response;
+                if (id) {
+                    response = await fetch(`${REST_URL}/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(curso) });
+                } else {
+                    response = await fetch(REST_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(curso) });
+                }
+                if (!response.ok) throw new Error('Error al guardar');
+                const data = await response.json();
+                mostrarRest(`${id ? 'Actualizado' : 'Creado'}: ID=${data.id}`);
+                limpiarFormularioCurso();
+            } catch (e) { mostrarRest(e.message, true); }
+        }
+
+        async function listarCursos() {
+            try {
+                const response = await fetch(REST_URL);
+                const cursos = await response.json();
+                if (cursos.length === 0) { mostrarRest('No hay cursos'); return; }
+                let html = '<table><tr><th>ID</th><th>Nombre</th><th>Inicio</th><th></th></tr>';
+                for (let c of cursos) {
+                    html += `<tr><td>${c.id}</td><td>${c.nombre}</td><td>${c.fechaInicio}</td>
+                        <td><button class="btn" onclick="cargarCurso(${c.id})">Editar</button></td></tr>`;
+                }
+                html += '</table>';
+                mostrarRest(html);
+            } catch (e) { mostrarRest('Error de conexion', true); }
+        }
+
+        async function cargarCurso(id) {
+            try {
+                const response = await fetch(`${REST_URL}/${id}`);
+                const c = await response.json();
+                document.getElementById('cursoId').value = c.id;
+                document.getElementById('cursoNombre').value = c.nombre;
+                document.getElementById('cursoDescripcion').value = c.descripcion;
+                document.getElementById('cursoFechaInicio').value = c.fechaInicio;
+                document.getElementById('cursoFechaFin').value = c.fechaFin || '';
+                mostrarRest('Curso cargado');
+            } catch (e) { mostrarRest(e.message, true); }
+        }
+
+        async function buscarCursoPorNombre() {
+            const nombre = document.getElementById('buscarNombreCurso').value;
+            if (!nombre) { mostrarRest('Ingrese nombre', true); return; }
+            try {
+                const response = await fetch(`${REST_URL}/buscar/nombre?nombre=${encodeURIComponent(nombre)}`);
+                const cursos = await response.json();
+                mostrarCursos(cursos);
+            } catch (e) { mostrarRest(e.message, true); }
+        }
+
+        async function buscarCursoPorFecha() {
+            const fecha = document.getElementById('buscarFechaCurso').value;
+            if (!fecha) { mostrarRest('Seleccione fecha', true); return; }
+            try {
+                const response = await fetch(`${REST_URL}/buscar/fecha?fecha=${fecha}`);
+                const cursos = await response.json();
+                mostrarCursos(cursos);
+            } catch (e) { mostrarRest(e.message, true); }
+        }
+
+        function mostrarCursos(cursos) {
+            if (cursos.length === 0) { mostrarRest('Sin resultados'); return; }
+            let html = '<table><tr><th>ID</th><th>Nombre</th><th>Inicio</th><th></th></tr>';
+            for (let c of cursos) {
+                html += `<tr><td>${c.id}</td><td>${c.nombre}</td><td>${c.fechaInicio}</td>
+                    <td><button class="btn" onclick="cargarCurso(${c.id})">Editar</button></td></tr>`;
+            }
+            html += '</table>';
+            mostrarRest(html);
+        }
+
+        function limpiarFormularioCurso() {
+            document.getElementById('cursoId').value = '';
+            document.getElementById('cursoNombre').value = '';
+            document.getElementById('cursoDescripcion').value = '';
+            document.getElementById('cursoFechaInicio').value = '';
+            document.getElementById('cursoFechaFin').value = '';
+        }
+
+        function mostrarRest(msg, error = false) {
+            const div = document.getElementById('resultadoRest');
+            div.innerHTML = msg;
+            div.className = 'resultado ' + (error ? 'error' : 'exito');
+        }
+    </script>
+</body>
+</html>

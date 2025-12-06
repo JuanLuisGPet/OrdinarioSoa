@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alumnos - Plataforma Academica</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #f0f0f0; }
+        h1 { text-align: center; color: #333; }
+        nav { text-align: center; margin-bottom: 20px; }
+        nav a { margin: 0 10px; color: #007bff; text-decoration: none; }
+        nav a:hover { text-decoration: underline; }
+        .panel { background: white; padding: 20px; max-width: 500px; margin: 0 auto; border: 1px solid #ccc; }
+        .panel h2 { margin-top: 0; padding-bottom: 10px; border-bottom: 2px solid #333; }
+        .campo { margin-bottom: 12px; }
+        .campo label { display: block; margin-bottom: 4px; font-weight: bold; }
+        .campo input { width: 100%; padding: 8px; border: 1px solid #999; box-sizing: border-box; }
+        .botones { margin: 10px 0; }
+        button { padding: 8px 16px; margin-right: 5px; margin-bottom: 5px; cursor: pointer; }
+        .btn { background: #007bff; color: white; border: none; }
+        .btn-rojo { background: #dc3545; color: white; border: none; }
+        .resultado { margin-top: 15px; padding: 10px; background: #e9e9e9; border: 1px solid #ccc; min-height: 40px; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { border: 1px solid #ccc; padding: 6px; text-align: left; }
+        th { background: #ddd; }
+        .error { color: red; }
+        .exito { color: green; }
+        hr { margin: 15px 0; border: none; border-top: 1px solid #ccc; }
+    </style>
+</head>
+<body>
+    <h1>Plataforma Academica</h1>
+    <nav>
+        <a href="alumnos.html"><strong>Alumnos</strong></a> |
+        <a href="cursos.html">Cursos</a>
+    </nav>
+
+    <div class="panel">
+        <h2>Alumnos (SOAP)</h2>
+
+        <h4>Registrar Alumno</h4>
+        <div class="campo">
+            <label>Nombre:</label>
+            <input type="text" id="alumnoNombre" placeholder="Nombre del alumno">
+        </div>
+        <div class="botones">
+            <button class="btn" onclick="crearAlumno()">Registrar</button>
+        </div>
+
+        <hr>
+
+        <h4>Buscar Alumno</h4>
+        <div class="campo">
+            <label>Matricula:</label>
+            <input type="text" id="buscarMatricula" placeholder="ej: k1">
+        </div>
+        <div class="botones">
+            <button class="btn" onclick="buscarPorMatricula()">Buscar</button>
+            <button class="btn" onclick="listarAlumnos()">Ver Todos</button>
+        </div>
+
+        <hr>
+
+        <h4>Eliminar Alumnos</h4>
+        <div class="campo">
+            <label>IDs (minimo 2, separados por coma):</label>
+            <input type="text" id="idsEliminar" placeholder="ej: 1,2">
+        </div>
+        <div class="botones">
+            <button class="btn-rojo" onclick="eliminarAlumnos()">Eliminar</button>
+        </div>
+
+        <div class="resultado" id="resultadoSoap">-</div>
+    </div>
+
+    <script>
+        const SOAP_URL = 'http://localhost:8002/soap/';
+
+        async function enviarSoap(operacion, contenido) {
+            const xml = `<?xml version="1.0" encoding="UTF-8"?>
+                <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
+                               xmlns:tns="http://alumno.soap.service/">
+                    <soap:Body>
+                        <tns:${operacion}>${contenido}</tns:${operacion}>
+                    </soap:Body>
+                </soap:Envelope>`;
+            try {
+                const response = await fetch(SOAP_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/xml; charset=utf-8' },
+                    body: xml
+                });
+                return await response.text();
+            } catch (error) {
+                throw new Error('Error de conexion SOAP');
+            }
+        }
+
+        function parsearRespuestaSoap(xmlString) {
+            const parser = new DOMParser();
+            const xml = parser.parseFromString(xmlString, 'text/xml');
+            const fault = xml.getElementsByTagName('faultstring')[0];
+            if (fault) return { error: fault.textContent };
+            return xml;
+        }
+
+        async function crearAlumno() {
+            const nombre = document.getElementById('alumnoNombre').value;
+            if (!nombre) { mostrarSoap('Ingrese un nombre', true); return; }
+            try {
+                const response = await enviarSoap('CrearAlumno', `<tns:nombre>${nombre}</tns:nombre>`);
+                const xml = parsearRespuestaSoap(response);
+                if (xml.error) { mostrarSoap(xml.error, true); return; }
+                const id = xml.getElementsByTagNameNS('*', 'id')[0]?.textContent || '';
+                const matricula = xml.getElementsByTagNameNS('*', 'matricula')[0]?.textContent || '';
+                mostrarSoap(`Creado: ID=${id}, Matricula=${matricula}`);
+                document.getElementById('alumnoNombre').value = '';
+            } catch (e) { mostrarSoap(e.message, true); }
+        }
+
+        async function buscarPorMatricula() {
+            const matricula = document.getElementById('buscarMatricula').value;
+            if (!matricula) { mostrarSoap('Ingrese matricula', true); return; }
+            try {
+                const response = await enviarSoap('ObtenerPorMatricula', `<tns:matricula>${matricula}</tns:matricula>`);
+                const xml = parsearRespuestaSoap(response);
+                if (xml.error) { mostrarSoap(xml.error, true); return; }
+                const id = xml.getElementsByTagNameNS('*', 'id')[0]?.textContent || '';
+                const nombre = xml.getElementsByTagNameNS('*', 'nombre')[0]?.textContent || '';
+                mostrarSoap(`ID: ${id}, Nombre: ${nombre}`);
+            } catch (e) { mostrarSoap(e.message, true); }
+        }
+
+        async function listarAlumnos() {
+            try {
+                const response = await enviarSoap('ListarAlumnos', '');
+                const xml = parsearRespuestaSoap(response);
+                if (xml.error) { mostrarSoap(xml.error, true); return; }
+                const alumnos = xml.getElementsByTagNameNS('*', 'Alumno');
+                if (alumnos.length === 0) { mostrarSoap('No hay alumnos'); return; }
+                let html = '<table><tr><th>ID</th><th>Matricula</th><th>Nombre</th></tr>';
+                for (let a of alumnos) {
+                    html += `<tr><td>${a.getElementsByTagNameNS('*', 'id')[0]?.textContent}</td>
+                        <td>${a.getElementsByTagNameNS('*', 'matricula')[0]?.textContent}</td>
+                        <td>${a.getElementsByTagNameNS('*', 'nombre')[0]?.textContent}</td></tr>`;
+                }
+                html += '</table>';
+                mostrarSoap(html);
+            } catch (e) { mostrarSoap(e.message, true); }
+        }
+
+        async function eliminarAlumnos() {
+            const idsStr = document.getElementById('idsEliminar').value;
+            const ids = idsStr.split(',').map(id => id.trim()).filter(id => id);
+            if (ids.length < 2) { mostrarSoap('Ingrese al menos 2 IDs', true); return; }
+            try {
+                let idsXml = ids.map(id => `<tns:id>${id}</tns:id>`).join('');
+                const response = await enviarSoap('EliminarAlumnos', `<tns:ids>${idsXml}</tns:ids>`);
+                const xml = parsearRespuestaSoap(response);
+                if (xml.error) { mostrarSoap(xml.error, true); return; }
+                const msg = xml.getElementsByTagNameNS('*', 'message')[0]?.textContent || 'Eliminados';
+                mostrarSoap(msg);
+                document.getElementById('idsEliminar').value = '';
+            } catch (e) { mostrarSoap(e.message, true); }
+        }
+
+        function mostrarSoap(msg, error = false) {
+            const div = document.getElementById('resultadoSoap');
+            div.innerHTML = msg;
+            div.className = 'resultado ' + (error ? 'error' : 'exito');
+        }
+    </script>
+</body>
+</html>

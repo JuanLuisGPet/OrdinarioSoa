@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plataforma Academica</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #f0f0f0; }
+        h1 { text-align: center; color: #333; }
+        .contenedor { display: flex; gap: 20px; flex-wrap: wrap; justify-content: center; margin-top: 50px; }
+        .tarjeta { background: white; padding: 30px; width: 250px; border: 1px solid #ccc; text-align: center; }
+        .tarjeta h2 { margin-top: 0; }
+        .tarjeta p { color: #666; }
+        .tarjeta a { display: inline-block; margin-top: 15px; padding: 10px 20px; background: #007bff; color: white; text-decoration: none; }
+        .tarjeta a:hover { background: #0056b3; }
+    </style>
+</head>
+<body>
+    <h1>Plataforma Academica</h1>
+
+    <div class="contenedor">
+        <div class="tarjeta">
+            <h2>Alumnos</h2>
+            <p>Gestion de alumnos mediante servicio SOAP</p>
+            <a href="alumnos.html">Ir a Alumnos</a>
+        </div>
+
+        <div class="tarjeta">
+            <h2>Cursos</h2>
+            <p>Gestion de cursos mediante servicio REST</p>
+            <a href="cursos.html">Ir a Cursos</a>
+        </div>
+    </div>
+</body>
+</html>
